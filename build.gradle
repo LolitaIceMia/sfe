@@ -104,7 +104,9 @@ project(":game-admin-api") {
 // Fabric Mod
 project(":game-mod-fabric") {
     apply plugin: "fabric-loom"
-
+    tasks.withType(JavaCompile).configureEach {
+        options.release.set(21)
+    }
     dependencies {
         minecraft "com.mojang:minecraft:${minecraft_version}"
         mappings "net.fabricmc:yarn:${yarn_mappings}:v2"
@@ -119,7 +121,7 @@ project(":game-mod-fabric") {
         runs {
             server {
                 server()
-                name "SFE Dev Server"
+                name "SFE_Dev_Server"
             }
         }
     }
