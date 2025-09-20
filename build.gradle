@@ -1,105 +1,137 @@
 plugins {
-    id 'fabric-loom' version '1.11-SNAPSHOT'
-    id 'maven-publish'
+    id("java")
+    id("jacoco")
+    id("org.springframework.boot") version "3.2.0" apply false
+    id("io.spring.dependency-management") version "1.1.4" apply false
+    id("fabric-loom") version "1.9-SNAPSHOT" apply false
 }
 
-version = project.mod_version
-group = project.maven_group
-
-base {
-    archivesName = project.archives_base_name
-}
-
-loom {
-    splitEnvironmentSourceSets()
-
-    mods {
-        "sfe" {
-            sourceSet sourceSets.main
-            sourceSet sourceSets.client
-        }
-    }
-}
-
-fabricApi {
-    configureDataGeneration {
-        client = true
-    }
-}
-
-repositories {
-    // Add repositories to retrieve artifacts from in here.
-    // You should only use this when depending on other mods because
-    // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-    // See https://docs.gradle.org/current/userguide/declaring_repositories.html
-    // for more information about repositories.
-}
-
-dependencies {
-    // To change the versions see the gradle.properties file
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-}
-
-processResources {
-    inputs.property "version", project.version
-    inputs.property "minecraft_version", project.minecraft_version
-    inputs.property "loader_version", project.loader_version
-    filteringCharset "UTF-8"
-
-    filesMatching("fabric.mod.json") {
-        expand "version": project.version,
-                "minecraft_version": project.minecraft_version,
-                "loader_version": project.loader_version
-    }
-}
-
-def targetJavaVersion = 21
-tasks.withType(JavaCompile).configureEach {
-    // ensure that the encoding is set to UTF-8, no matter what the system default is
-    // this fixes some edge cases with special characters not displaying correctly
-    // see http://yodaconditions.net/blog/fix-for-java-file-encoding-problems-with-gradle.html
-    // If Javadoc is generated, this must be specified in that task too.
-    it.options.encoding = "UTF-8"
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        it.options.release.set(targetJavaVersion)
-    }
-}
 
 java {
-    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    }
-    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-    // if it is present.
-    // If you remove this line, sources will not be generated.
-    withSourcesJar()
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
 }
 
-jar {
-    from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}" }
+allprojects {
+    group = project.findProperty("maven_group") ?: "com.foxsoftware"
+    version = project.findProperty("mod_version") ?: "1.0-SNAPSHOT"
+    repositories {
+        maven { name = "CentralDirect"; url = uri("https://repo1.maven.org/maven2/") }
+
+        mavenCentral()
+        maven { url = uri("https://maven.fabricmc.net/") }
+
+
     }
 }
 
-// configure the maven publication
-publishing {
-    publications {
-        create("mavenJava", MavenPublication) {
-            artifactId = project.archives_base_name
-            from components.java
+subprojects {
+    apply plugin: "java"
+
+    tasks.withType(JavaCompile).configureEach {
+        options.release.set(17)
+        options.encoding = "UTF-8"
+    }
+
+    dependencies {
+        compileOnly "org.projectlombok:lombok:${lombok_version}"
+        annotationProcessor "org.projectlombok:lombok:${lombok_version}"
+        testCompileOnly "org.projectlombok:lombok:${lombok_version}"
+        testAnnotationProcessor "org.projectlombok:lombok:${lombok_version}"
+
+        testImplementation "org.junit.jupiter:junit-jupiter:${junit_version}"
+        testImplementation "org.mockito:mockito-core:${mockito_version}"
+    }
+
+    test { useJUnitPlatform() }
+}
+
+// Domain
+project(":game-domain") {}
+
+// Application
+project(":game-application") {
+    dependencies {
+        implementation project(":game-domain")
+    }
+}
+
+// Infra
+project(":game-infra") {
+    dependencies {
+        implementation project(":game-domain")
+        implementation project(":game-application")
+        implementation "org.xerial:sqlite-jdbc:${sqlite_driver_version}"
+        implementation "org.flywaydb:flyway-core:${flyway_version}"
+        implementation "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
+        implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
+    }
+}
+
+// Admin API
+project(":game-admin-api") {
+    apply plugin: "org.springframework.boot"
+    apply plugin: "io.spring.dependency-management"
+    project(":game-admin-api") {
+        repositories {
+            maven { url = uri("https://repo1.maven.org/maven2/") }
+            mavenCentral()
         }
     }
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-    repositories {
-        // Add repositories to publish to here.
-        // Notice: This block does NOT have the same function as the block in the top level.
-        // The repositories here will be used for publishing your artifact, not for
-        // retrieving dependencies.
+    dependencies {
+        implementation project(":game-domain")
+        implementation project(":game-application")
+        implementation project(":game-infra")
+
+        implementation "org.springframework.boot:spring-boot-starter-web:${spring_boot_version}"
+        implementation "org.springframework.boot:spring-boot-starter-websocket:${spring_boot_version}"
+        implementation "org.springframework.boot:spring-boot-starter-actuator:${spring_boot_version}"
+        implementation "io.micrometer:micrometer-registry-prometheus"
+
+        implementation group: 'com.bucket4j', name: 'bucket4j_jdk11-core', version: '8.15.0'
+
+        implementation "io.jsonwebtoken:jjwt-api:${jjwt_version}"
+        runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwt_version}"
+        runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwt_version}"
+
+        implementation "org.flywaydb:flyway-core:${flyway_version}"
+        implementation "org.xerial:sqlite-jdbc:${sqlite_driver_version}"
+        implementation "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
+        implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
+    }
+}
+
+// Fabric Mod
+project(":game-mod-fabric") {
+    apply plugin: "fabric-loom"
+
+    dependencies {
+        minecraft "com.mojang:minecraft:${minecraft_version}"
+        mappings "net.fabricmc:yarn:${yarn_mappings}:v2"
+        modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+        modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+
+        implementation project(":game-domain")
+        implementation project(":game-application")
+    }
+
+    loom {
+        runs {
+            server {
+                server()
+                name "SFE Dev Server"
+            }
+        }
+    }
+}
+
+// Plugins (占位)
+project(":game-plugins:loot-weighted") {
+    dependencies { implementation project(":game-domain") }
+}
+project(":game-plugins:extraction-basic") {
+    dependencies {
+        implementation project(":game-domain")
+        implementation project(":game-application")
     }
 }

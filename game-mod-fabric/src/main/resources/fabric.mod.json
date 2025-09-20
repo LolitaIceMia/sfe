@@ -11,13 +11,13 @@
   "environment": "*",
   "entrypoints": {
     "fabric-datagen": [
-      "com.foxsoftware.sfe.client.SfeDataGenerator"
+      "com.foxsoftware.client.SfeDataGenerator"
     ],
     "client": [
-      "com.foxsoftware.sfe.client.SfeClient"
+      "com.foxsoftware.client.SfeClient"
     ],
     "main": [
-      "com.foxsoftware.sfe.Sfe"
+      "com.foxsoftware.Sfe"
     ]
   },
   "mixins": [

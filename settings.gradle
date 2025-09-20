@@ -7,3 +7,14 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+rootProject.name = "sfe-tactical-extraction"
+
+include(
+        "game-domain",
+        "game-application",
+        "game-infra",
+        "game-admin-api",
+        "game-mod-fabric",
+        "game-plugins:loot-weighted",
+        "game-plugins:extraction-basic"
+)
