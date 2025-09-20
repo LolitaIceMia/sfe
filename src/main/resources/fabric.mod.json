@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "sfe",
+  "version": "${version}",
+  "name": "sfe",
+  "description": "Search Fight and Evacuatie Mod",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/sfe/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "com.foxsoftware.client.SfeDataGenerator"
+    ],
+    "client": [
+      "com.foxsoftware.client.SfeClient"
+    ],
+    "main": [
+      "com.foxsoftware.Sfe"
+    ]
+  },
+  "mixins": [
+    "sfe.mixins.json",
+    {
+      "config": "sfe.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
